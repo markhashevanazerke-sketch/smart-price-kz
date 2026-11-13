@@ -1,5 +1,7 @@
 # 🌙 LunarEC — Polyglot Open-Source CRM & ERP Suite
 
+> **🛒 SMART PRICE** (HACKATHON 2026, CASE #3) — система мониторинга цен на социально значимые продукты в Казахстане — теперь живёт в этом репозитории и открывается на главной странице `/`. Полный гайд: **[SMART-PRICE.md](./SMART-PRICE.md)**. Оригинальный LunarEC — на **`/lunarec`**.
+
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active%20Development-brightgreen?style=for-the-badge" alt="Status" />
   <a href="https://github.com/BekbolatBolebay/LunarEC/actions">

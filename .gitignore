@@ -46,3 +46,7 @@ services/pos-gateway/bin/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# SMART PRICE local data (SQLite demo DB + scratch)
+/data/
+/tmp/

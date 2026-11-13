@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { AppProvider } from '@/lib/app-context';
 import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
-  title: 'LunarEC — Modular CRM & ERP Suite',
-  description: 'Кәсіпорын ресурстарын және тұтынушылар базасын басқарудың ашық бастапқы кодты модульдік жүйесі (Odoo 17/18 Architecture)',
+  title: 'SMART PRICE — Intelligent Food Price Monitoring System',
+  description: 'Платформа мониторинга, анализа и сравнения цен на социально значимые продукты питания в Казахстане. Хакатон 2026, кейс №3. Построено на архитектуре LunarEC.',
 };
 
 export default function RootLayout({
@@ -14,12 +13,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="kk" className="h-full">
-      <body className="h-full font-sans bg-[#F6F7F9] text-slate-900 antialiased">
-        <AppProvider>
-          {children}
-          <Toaster richColors position="bottom-right" />
-        </AppProvider>
+    <html lang="ru" className="h-full">
+      <body className="h-full font-sans bg-[#F4F6FA] text-slate-900 antialiased">
+        {children}
+        <Toaster richColors position="bottom-right" />
       </body>
     </html>
   );

@@ -117,3 +117,25 @@ body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* SMART PRICE — demo step highlight */
+.sp-demo-hl {
+  outline: 3px solid #2563eb !important;
+  outline-offset: 3px;
+  border-radius: 12px !important;
+  animation: sp-pulse 1.6s ease-in-out infinite;
+  position: relative;
+  z-index: 5;
+}
+@keyframes sp-pulse {
+  0%, 100% { outline-color: #2563eb; }
+  50% { outline-color: #93c5fd; }
+}
+
+/* SMART PRICE — PDF export via print */
+@media print {
+  .no-print, aside, .sp-topbar { display: none !important; }
+  body { background: #fff !important; }
+  main { margin: 0 !important; padding: 0 !important; }
+  #sp-report-print { max-width: 100% !important; padding: 0 !important; }
+}

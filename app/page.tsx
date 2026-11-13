@@ -1,318 +1,103 @@
 'use client';
+// SMART PRICE — landing / launch page (hackathon demo entry point).
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useApp } from '@/lib/app-context';
-import { 
-  initialLeads, initialCustomers, initialStock, initialRecipes, 
-  initialPurchaseOrders, initialEmployees, initialTables, initialChatter,
-  Lead, Customer, StockItem, Employee, ChatterNote 
-} from '@/lib/store';
-import { OdooNavbar } from '@/components/odoo/OdooNavbar';
-import { OdooAppLauncherModal } from '@/components/odoo/OdooAppLauncherModal';
-import { OdooKanbanBoard } from '@/components/odoo/OdooKanbanBoard';
-import { OdooListView } from '@/components/odoo/OdooListView';
-import { OdooFormModal } from '@/components/odoo/OdooFormModal';
-import { OdooSyncModal } from '@/components/odoo/OdooSyncModal';
-import { OdooAnalyticsView } from '@/components/odoo/OdooAnalyticsView';
-import { OdooCreateModal } from '@/components/odoo/OdooCreateModal';
-import { KaspiFiscalPaymentModal } from '@/components/odoo/KaspiFiscalPaymentModal';
-import { TwentyCommandPalette } from '@/components/twenty/TwentyCommandPalette';
-import { TwentyFilterBar } from '@/components/twenty/TwentyFilterBar';
-import { QrCode, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
+import React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Tag, TrendingUp, MapPinned, ShieldCheck, Languages, Database, Play } from 'lucide-react';
 
-export default function OdooHomePage() {
-  const { activeModule, setActiveModule, viewMode, setViewMode } = useApp();
+const FEATURES = [
+  { icon: TrendingUp, kk: 'Мониторинг пен динамикасы', ru: 'Мониторинг и динамика цен', en: 'Price monitoring & dynamics', d_kk: 'Барлық баға жазбалары, тарих, өзгеріс пайызы', d_ru: 'Все записи цен, история, процент изменения', d_en: 'All price records, history, change %' },
+  { icon: MapPinned, kk: 'Қазақстан картасы', ru: 'Карта Казахстана', en: 'Kazakhstan map', d_kk: 'Аймақтар, сауда нүктелері, баға деңгейлері', d_ru: 'Регионы, торговые точки, ценовые уровни', d_en: 'Regions, stores, price levels' },
+  { icon: ShieldCheck, kk: 'AI аномалия детекторы', ru: 'AI-детектор аномалий', en: 'AI anomaly detector', d_kk: 'z-score, порог, рынокты салыстыру', d_ru: 'z-score, порог, сравнение с рынком', d_en: 'z-score, threshold, cross-store' },
+  { icon: Database, kk: 'Жұмыс істейтін БД', ru: 'Рабочая база данных', en: 'Working database', d_kk: 'SQLite + REST API, CRUD, экспорт Excel', d_ru: 'SQLite + REST API, CRUD, Excel export', d_en: 'SQLite + REST API, CRUD, Excel export' },
+];
 
-  // State
-  const [leads, setLeads] = useState<Lead[]>(initialLeads);
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [stock, setStock] = useState<StockItem[]>(initialStock);
-  const [recipes, setRecipes] = useState(initialRecipes);
-  const [purchaseOrders, setPurchaseOrders] = useState(initialPurchaseOrders);
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-  const [tables, setTables] = useState(initialTables);
-  const [chatter, setChatter] = useState<ChatterNote[]>(initialChatter);
-
-  // Modals
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isSyncOpen, setIsSyncOpen] = useState(false);
-  const [isKaspiPaymentOpen, setIsKaspiPaymentOpen] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-
-  // Twenty Filter & Sort Controls
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeStageFilter, setActiveStageFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('revenue-desc');
-
-  // Twenty-style Global Keyboard Shortcuts (Cmd+K, C, P, S, 1, 2, 3)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeTag = document.activeElement?.tagName.toLowerCase();
-      const isInputActive = activeTag === 'input' || activeTag === 'textarea' || document.activeElement?.getAttribute('contenteditable') === 'true';
-
-      // ⌘K or Ctrl+K opens Command Palette
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setIsCommandPaletteOpen((prev) => !prev);
-        return;
-      }
-
-      // Ignore single-key shortcuts when typing in inputs
-      if (isInputActive) return;
-
-      if (e.key === 'c' || e.key === 'C') {
-        e.preventDefault();
-        setIsCreateOpen(true);
-      } else if (e.key === 'p' || e.key === 'P') {
-        e.preventDefault();
-        setIsKaspiPaymentOpen(true);
-      } else if (e.key === 's' || e.key === 'S') {
-        e.preventDefault();
-        setIsSyncOpen(true);
-      } else if (e.key === '1') {
-        e.preventDefault();
-        setViewMode('kanban');
-      } else if (e.key === '2') {
-        e.preventDefault();
-        setViewMode('list');
-      } else if (e.key === '3') {
-        e.preventDefault();
-        setViewMode('analytics');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setViewMode]);
-
-  // Actions
-  const handleUpdateLeadStage = (leadId: string, newStage: Lead['stage']) => {
-    setLeads(prev => prev.map(l => {
-      if (l.id === leadId) {
-        return { ...l, stage: newStage };
-      }
-      return l;
-    }));
-
-    // Add chatter record
-    const systemNote: ChatterNote = {
-      id: `chat-${Date.now()}`,
-      recordId: leadId,
-      author: 'Жүйе (System)',
-      content: `Келісім сатысы жаңартылды: "${newStage.toUpperCase()}"`,
-      type: 'system',
-      createdAt: new Date().toLocaleTimeString('kk-KZ', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setChatter(prev => [systemNote, ...prev]);
-    toast.info('Келісім сатысы өзгертілді');
-  };
-
-  const handleClockToggle = (empId: string) => {
-    setEmployees(prev => prev.map(emp => {
-      if (emp.id === empId) {
-        const isNowActive = emp.status !== 'active';
-        const nowTime = new Date().toLocaleTimeString('kk-KZ', { hour: '2-digit', minute: '2-digit' });
-        toast.success(
-          isNowActive 
-            ? `${emp.name} жұмыс ауысымын бастады (${nowTime})` 
-            : `${emp.name} жұмыс ауысымын аяқтады`
-        );
-        return {
-          ...emp,
-          status: isNowActive ? 'active' : 'clocked_out',
-          lastCheckIn: isNowActive ? `Бүгін ${nowTime}` : emp.lastCheckIn,
-        };
-      }
-      return emp;
-    }));
-  };
-
-  const handleAddLead = (newLead: Lead) => {
-    setLeads(prev => [newLead, ...prev]);
-  };
-
-  const handleAddStock = (newStock: StockItem) => {
-    setStock(prev => [newStock, ...prev]);
-  };
-
-  const handleSaveLead = (updated: Lead) => {
-    setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
-  };
-
-  const handleAddNote = (recordId: string, content: string, type: 'note' | 'activity') => {
-    const newNote: ChatterNote = {
-      id: `chat-${Date.now()}`,
-      recordId,
-      author: 'Әкімші (Admin)',
-      content,
-      type,
-      createdAt: new Date().toLocaleTimeString('kk-KZ', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setChatter(prev => [newNote, ...prev]);
-  };
-
-  // Filtered & Sorted Leads
-  const filteredLeads = useMemo(() => {
-    let result = [...leads];
-
-    if (activeStageFilter !== 'all') {
-      result = result.filter(l => l.stage === activeStageFilter);
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        l =>
-          l.title.toLowerCase().includes(q) ||
-          l.contactName.toLowerCase().includes(q) ||
-          (l.company && l.company.toLowerCase().includes(q)) ||
-          l.phone.includes(q) ||
-          String(l.expectedRevenue).includes(q)
-      );
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      if (sortBy === 'revenue-desc') return b.expectedRevenue - a.expectedRevenue;
-      if (sortBy === 'revenue-asc') return a.expectedRevenue - b.expectedRevenue;
-      if (sortBy === 'probability-desc') return b.probability - a.probability;
-      if (sortBy === 'title-asc') return a.title.localeCompare(b.title);
-      return 0;
-    });
-
-    return result;
-  }, [leads, activeStageFilter, searchQuery, sortBy]);
-
-  // Filtered Stock
-  const filteredStock = useMemo(() => {
-    if (!searchQuery.trim()) return stock;
-    const q = searchQuery.toLowerCase();
-    return stock.filter(
-      s => s.name.toLowerCase().includes(q) || s.sku.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
-    );
-  }, [stock, searchQuery]);
-
-  // Filtered Customers
-  const filteredCustomers = useMemo(() => {
-    if (!searchQuery.trim()) return customers;
-    const q = searchQuery.toLowerCase();
-    return customers.filter(
-      c => c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email && c.email.toLowerCase().includes(q))
-    );
-  }, [customers, searchQuery]);
+export default function LandingPage() {
+  const router = useRouter();
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F6F7F9] relative">
-      {/* Odoo & Twenty Unified Navigation Bar */}
-      <OdooNavbar 
-        onOpenCreate={() => setIsCreateOpen(true)}
-        onOpenSync={() => setIsSyncOpen(true)}
-      />
+    <div className="min-h-screen bg-[#0B1D33] text-white relative overflow-hidden">
+      {/* backdrop */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-[#1E4E8C]/40 blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] rounded-full bg-[#0E3A66]/50 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+      </div>
 
-      {/* Twenty-style Dynamic Filter & Quick Palette Trigger Bar */}
-      {(viewMode === 'kanban' || viewMode === 'list') && (
-        <TwentyFilterBar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          activeStageFilter={activeStageFilter}
-          onStageFilterChange={setActiveStageFilter}
-          sortBy={sortBy}
-          onSortByChange={setSortBy}
-          totalCount={filteredLeads.length}
-          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        />
-      )}
-
-      {/* Main Viewport Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {viewMode === 'analytics' || activeModule === 'analytics' ? (
-          <OdooAnalyticsView />
-        ) : viewMode === 'kanban' ? (
-          <OdooKanbanBoard 
-            leads={filteredLeads}
-            employees={employees}
-            tables={tables}
-            onSelectLead={(l) => setSelectedLead(l)}
-            onUpdateLeadStage={handleUpdateLeadStage}
-            onClockToggle={handleClockToggle}
-          />
-        ) : (
-          <OdooListView 
-            customers={filteredCustomers}
-            stock={filteredStock}
-            recipes={recipes}
-            purchaseOrders={purchaseOrders}
-            employees={employees}
-            onSelectCustomer={(c) => toast.info(`Клиент таңдалды: ${c.name}`)}
-            onSelectStock={(s) => toast.info(`Тауар: ${s.name} (Қалдық: ${s.currentStock} ${s.unit})`)}
-          />
-        )}
-      </main>
-
-      {/* Quick Access Floating Kaspi QR Fiscal Bar */}
-      <aside aria-label="Фискалды Kaspi QR төлем тақтасы" className="fixed bottom-6 right-6 z-40">
-        <button
-          onClick={() => setIsKaspiPaymentOpen(true)}
-          className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-600 text-white rounded-2xl shadow-xl shadow-red-500/25 border border-white/20 transition-all duration-200 transform hover:-translate-y-0.5 active:scale-95 group"
-        >
-          <div className="p-1.5 bg-white/20 rounded-lg group-hover:rotate-12 transition-transform">
-            <QrCode className="w-5 h-5 text-white" />
-          </div>
-          <div className="text-left">
-            <div className="text-xs font-bold leading-none flex items-center gap-1.5">
-              Kaspi QR & ОФД
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+      <div className="relative max-w-5xl mx-auto px-6 py-14 flex flex-col min-h-screen">
+        {/* top bar */}
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#1D4ED8] flex items-center justify-center shadow-lg shadow-blue-900/50">
+              <Tag className="w-6 h-6 text-white" />
             </div>
-            <div className="text-[10px] text-white/80 leading-tight">ҚР Салық / 1С / ЭСФ</div>
+            <div>
+              <div className="font-bold text-lg tracking-wide">SMART PRICE</div>
+              <div className="text-[11px] text-blue-200/70 tracking-widest uppercase">Food Price Intelligence</div>
+            </div>
           </div>
-        </button>
-      </aside>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 rounded-full bg-amber-400/15 border border-amber-300/30 text-amber-300 text-xs font-semibold flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> DEMO MODE
+            </span>
+            <Link href="/lunarec" className="text-xs text-blue-200/60 hover:text-white transition-colors ml-2">LunarEC ↗</Link>
+          </div>
+        </header>
 
-      {/* Modals & Palettes */}
-      <OdooAppLauncherModal />
-      
-      <OdooCreateModal 
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onAddLead={handleAddLead}
-        onAddStock={handleAddStock}
-      />
+        {/* hero */}
+        <main className="flex-1 flex flex-col justify-center py-16">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-blue-200 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 w-fit mb-8">
+            <Languages className="w-3.5 h-3.5" /> Хакатон 2026 · Кейс №3 · Қазақстан / Kazakhstan
+          </div>
+          <h1 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight">
+            Цены на продукты.<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-sky-400">Под контролем.</span>
+          </h1>
+          <p className="mt-6 text-lg text-blue-100/70 max-w-2xl leading-relaxed">
+            Единая система сбора, сравнения и анализа цен на социально значимые продукты в торговых точках Казахстана.
+            AI-модуль автоматически выявляет подозрительные колебания — без обвинений, только сигналы для проверки.
+          </p>
 
-      <OdooSyncModal 
-        isOpen={isSyncOpen}
-        onClose={() => setIsSyncOpen(false)}
-      />
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <button
+              onClick={() => router.push('/dashboard?demo=1')}
+              className="group flex items-center gap-3 px-7 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold text-lg shadow-xl shadow-blue-900/40 transition-all hover:-translate-y-0.5"
+            >
+              <Play className="w-5 h-5 fill-white group-hover:scale-110 transition-transform" />
+              Запустить демонстрацию
+            </button>
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 px-7 py-4 rounded-2xl bg-white/5 border border-white/15 hover:bg-white/10 text-white font-semibold transition-all"
+            >
+              Открыть платформу
+            </Link>
+          </div>
 
-      <OdooFormModal 
-        lead={selectedLead}
-        onClose={() => setSelectedLead(null)}
-        onSaveLead={handleSaveLead}
-        chatter={chatter}
-        onAddNote={handleAddNote}
-      />
+          <p className="mt-6 text-xs text-blue-200/50 max-w-xl">
+            ⚠ Все данные в системе — тестовые (демонстрационные). Адреса торговых точек синтетические и не являются реальными.
+          </p>
 
-      <KaspiFiscalPaymentModal
-        isOpen={isKaspiPaymentOpen}
-        onClose={() => setIsKaspiPaymentOpen(false)}
-        orderNumber="ORD-2026-88"
-      />
+          {/* features */}
+          <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {FEATURES.map((f, i) => (
+              <div key={i} className="rounded-2xl bg-white/[0.04] border border-white/10 p-5 hover:bg-white/[0.07] transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/15 border border-blue-400/20 flex items-center justify-center mb-4">
+                  <f.icon className="w-5 h-5 text-blue-300" />
+                </div>
+                <div className="font-semibold text-sm">{f.ru}</div>
+                <div className="text-xs text-blue-200/60 mt-1.5 leading-relaxed">{f.d_ru}</div>
+              </div>
+            ))}
+          </div>
+        </main>
 
-      {/* Twenty-inspired Command Palette */}
-      <TwentyCommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        onOpenKaspiPayment={() => setIsKaspiPaymentOpen(true)}
-        onOpenCreateLead={() => setIsCreateOpen(true)}
-        onOpenSync={() => setIsSyncOpen(true)}
-        onSelectModule={setActiveModule}
-        onSelectView={setViewMode}
-        leads={leads}
-        customers={customers}
-        stock={stock}
-        onSelectLead={(lead) => setSelectedLead(lead)}
-      />
+        <footer className="flex items-center justify-between text-xs text-blue-200/40 pt-8 border-t border-white/10">
+          <span>SMART PRICE · на архитектуре LunarEC (Next.js 14 + TypeScript + SQLite)</span>
+          <span>3 языка: Қазақша · Русский · English</span>
+        </footer>
+      </div>
     </div>
   );
 }
